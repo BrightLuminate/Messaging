@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>채팅방</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles5.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #1D1D1D;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .chat-container {
+            width: 100%;
+            max-width: 100%;
+            height: 100%;
+            background: #1D1D1D;
+            border-radius: 0px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-header {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #000000;
+        }
+        .chat-header img {
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            margin-right: 10px;
+        }
+        .chat-header .user-info {
+            flex-grow: 1;
+        }
+        .chat-header .user-info h2 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 500;
+            color: #fff;
+        }
+        .chat-header .user-info span {
+            font-size: 12px;
+            color: #fff;
+        }
+        #chat {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: scroll;
+            display: flex;
+            flex-direction: column;
+            background-color: #1D1D1D;
+        }
+        #chat::-webkit-scrollbar {
+            width: 10px;
+        }
+        #chat::-webkit-scrollbar-track {
+            background: #1D1D1D;
+        }
+        #chat::-webkit-scrollbar-thumb {
+            background: #2B2B2B;
+            border-radius: 10px;
+        }
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 20px;
+            max-width: 70%;
+            word-wrap: break-word;
+            display: flex;
+            align-items: center;
+            position: relative;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        .message.sent {
+            background-color: #DCF8C6;
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+        .message.sent::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: -10px;
+            transform: translateY(-50%);
+            border-width: 10px;
+            border-style: solid;
+            border-color: transparent transparent transparent #DCF8C6;
+        }
+        .message.received {
+            background-color: #1D1D1D;
+            align-self: flex-start;
+        }
+        .message.received::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: -10px;
+            transform: translateY(-50%);
+            border-width: 10px;
+            border-style: solid;
+            border-color: transparent #1D1D1D transparent transparent;
+        }
+        .message img {
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            margin-right: 10px;
+        }
+        .message.sent img {
+            margin-left: 10px;
+            margin-right: 0;
+        }
+        .message .text {
+            display: flex;
+            flex-direction: column;
+        }
+        .message .text .name {
+            font-weight: bold;
+            font-size: 12px;
+        }
+        .delete-button {
+            background: transparent;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+            position: absolute;
+            top: 55px;
+            right: 10px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .input-container {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid #1D1D1D;
+            background: #1D1D1D;
+        }
+        #message-input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #1D1D1D;
+            border-radius: 20px;
+            font-size: 16px;
+            background: #333;
+            color: #fff;
+        }
+        #send-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
+            background-color: #2B2B2B;
+            color: #fff;
+            cursor: pointer;
+            font-size: 16px;
+            margin-left: 10px;
+        }
+        #send-button:hover {
+            background-color: #2B2B2B;
+        }
+        #send-button:focus, #send-button:active {
+            outline: none;
+            box-shadow: 0 0 10px #fff;
+        }
+        h2 {
+            color: #fff;
+        }
+        #back-button {
+            background-color: #2B2B2B;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            margin-right: 10px;
+          
+        }
+        #back-button:hover {
+            background-color: #2B2B2B;
+        }
+        #back-button:focus, #back-button:active {
+            outline: none;
+            box-shadow: 0 0 10px #fff;
+        }
+        .input-container:focus {
+            color: #000000;
+            border: #000000;
+            background-color: #000000;
+        }
+        a {
+            text-decoration: none;
+            color: #f7f7f7;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <!-- <button id="back-button" onclick="window.location.href='{{ url_for('myapp.people') }}'">Back</button> -->
+            <button id="back-button"><a href="{{ url_for('myapp.people') }}">Back</a></button>
+            <img src="{{ user.profile_image_url }}" alt="{{ user.username }}">
+            <div class="user-info">
+                <h2>{{ user.username }}</h2>
+                <span>Active now</span>
+            </div>
+        </div>
+        <div id="chat"></div>
+        <div class="input-container">
+            <input type="text" id="message-input" placeholder="메시지를 입력하세요">
+            <button id="send-button">전송</button>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const socket = io.connect('http://' + document.domain + ':' + location.port);
+
+            socket.on('connect', function() {
+                socket.emit('join', { room: "{{ room_id }}" });
+            });
+
+            socket.on('message', function(data) {
+                const chat = document.getElementById('chat');
+                const msg = document.createElement('div');
+                msg.classList.add('message', data.username === "최도현" ? 'sent' : 'received');
+                msg.innerHTML = `
+                    <img src="${data.profile_image_url}" alt="${data.username}">
+                    <div class="text">
+                        <div class="name">${data.username}</div>
+                        <div class="content">${data.msg}</div>
+                    </div>
+                    ${data.username === "최도현" ? '<button class="delete-button">삭제</button>' : ''}
+                `;
+                chat.appendChild(msg);
+                chat.scrollTop = chat.scrollHeight;
+
+                if (data.username === "최도현") {
+                    msg.querySelector('.delete-button').addEventListener('click', () => {
+                        chat.removeChild(msg);
+                    });
+                }
+            });
+
+            const sendButton = document.getElementById('send-button');
+            const messageInput = document.getElementById('message-input');
+
+            sendButton.addEventListener('click', function() {
+                const message = messageInput.value;
+                if (message.trim() !== '') {
+                    const userData = {
+                        msg: message,
+                        room: "{{ room_id }}",
+                        username: "최도현",
+                        profile_image_url: "{{ url_for('static', filename='jsj.jpeg') }}"
+                    };
+                    socket.emit('message', userData);
+                    const chat = document.getElementById('chat');
+                    const msg = document.createElement('div');
+                    msg.classList.add('message', 'sent');
+                    msg.innerHTML = `
+                        <img src="${userData.profile_image_url}" alt="${userData.username}">
+                                                <div class="text">
+                            <div class="name">${userData.username}</div>
+                            <div class="content">${userData.msg}</div>
+                        </div>
+                        <button class="delete-button">삭제</button>
+                    `;
+                    chat.appendChild(msg);
+                    chat.scrollTop = chat.scrollHeight;
+                    messageInput.value = '';
+
+                    msg.querySelector('.delete-button').addEventListener('click', () => {
+                        chat.removeChild(msg);
+                    });
+                }
+            });
+
+            messageInput.addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                    sendButton.click();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
